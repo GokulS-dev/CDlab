@@ -1,0 +1,619 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>KEC</title>
+</head>
+<body>
+    <h1>Token Separation / Symbol Table</h1>
+    <pre><code>
+#include 
+#include 
+#include 
+
+struct Symbol {
+    char name[50];
+    char type[20];
+    char memAddr[10];
+    char value[20];
+};
+
+struct Symbol table[100];
+int count = 0;
+int memLocation = 0x1000;
+
+void addSymbol(char *type, char *name, char *val) {
+    strcpy(table[count].name, name);
+    strcpy(table[count].type, "variable");
+    sprintf(table[count].memAddr, "0x%X", memLocation);
+    memLocation += 4;
+    if (val == NULL)
+        strcpy(table[count].value, "Uninitialized");
+    else
+        strcpy(table[count].value, val);
+    count++;
+}
+
+void printSymbolTable() {
+    printf("\n%-15s %-10s %-15s %-20s\n", "Name", "Type", "Memory Address", "Value");
+    printf("--------------------------------------------------------------\n");
+    for (int i = 0; i < count; i++) {
+        printf("%-15s %-10s %-15s %-20s\n", table[i].name, table[i].type, table[i].memAddr, table[i].value);
+    }
+}
+
+int main() {
+    char line[100];
+    printf("Enter variable declarations (e.g., int i = 5; float x = 0;):\n");
+    while (fgets(line, sizeof(line), stdin)) {
+        if (strcmp(line, "\n") == 0) break;
+        char type[20], name[50], eq[5], val[50];
+        int matched = sscanf(line, "%s %[^=;] = %[^;\n];", type, name, val);
+        if (matched == 3) {
+            char *trim = strtok(name, " ");
+            addSymbol(type, trim, val);
+        } else {
+            matched = sscanf(line, "%s %[^;\n];", type, name);
+            if (matched == 2) {
+                char *trim = strtok(name, " ");
+                addSymbol(type, trim, NULL);
+            }
+        }
+    }
+    printSymbolTable();
+    return 0;
+}
+
+// Input:
+// int count = 0;
+// float pi = 3.14;
+// char name;
+    </code></pre>
+    <h1>Three Address code generator</h1>
+    <pre>
+        <code>
+            #include <stdio.h>
+#include <string.h>
+#include <ctype.h>
+int tempCount = 1;
+// Generate new temporary variable name
+void newTemp(char *temp) {
+ sprintf(temp, "t%d", tempCount++);
+}
+// Main function
+int main() {
+ char expr[100];
+ printf("Enter expression (e.g. a=b+c*d): ");
+ scanf("%s", expr);
+ char lhs[10], rhs[90];
+ sscanf(expr, "%[^=]=%s", lhs, rhs); // Split lhs and rhs
+ char tokens[20][10];
+ int tokenCount = 0;
+ int i = 0;
+ // Tokenize RHS
+ while (rhs[i]) {
+ if (isalnum(rhs[i])) {
+ int j = 0;
+ while (isalnum(rhs[i])) {
+ tokens[tokenCount][j++] = rhs[i++];
+ }
+ tokens[tokenCount++][j] = '\0';
+ } else {
+ tokens[tokenCount][0] = rhs[i++];
+ tokens[tokenCount++][1] = '\0';
+ }
+ }
+ // Step 1: Handle * and /
+ for (int i = 0; i < tokenCount; i++) {
+ if (strcmp(tokens[i], "*") == 0 || strcmp(tokens[i], "/") == 0) {
+ char temp[10];
+ newTemp(temp);
+ printf("%s = %s %s %s\n", temp, tokens[i - 1], tokens[i], tokens[i + 1]);
+ strcpy(tokens[i - 1], temp);
+ // Shift tokens
+ for (int j = i; j < tokenCount - 2; j++)
+ strcpy(tokens[j], tokens[j + 2]);
+ tokenCount -= 2;
+ i--;
+ }
+ }
+ // Step 2: Handle + and -
+ for (int i = 0; i < tokenCount; i++) {
+ if (strcmp(tokens[i], "+") == 0 || strcmp(tokens[i], "-") == 0) {
+ char temp[10];
+ newTemp(temp);
+ printf("%s = %s %s %s\n", temp, tokens[i - 1], tokens[i], tokens[i + 1]);
+ strcpy(tokens[i - 1], temp);
+ // Shift tokens
+ for (int j = i; j < tokenCount - 2; j++)
+ strcpy(tokens[j], tokens[j + 2]);
+ tokenCount -= 2;
+ i--;
+ }
+ }
+ // Final assignment
+ printf("%s = %s\n", lhs, tokens[0]);
+ return 0;
+}
+Input:
+a=b+c*d
+        </code>
+    </pre>
+
+    <h1>Three address code for assembly code</h1>
+    <pre>
+        <code>
+            #include <stdio.h>
+#include <string.h>
+#define MAX 100
+int main() {
+ int n;
+ printf("Enter number of assembly instructions: ");
+ scanf("%d", &n);
+ getchar();
+ char assembly[MAX][100];
+ char tac[MAX][100]; // store 3-address code lines
+ for (int i = 0; i < n; i++) {
+ fgets(assembly[i], sizeof(assembly[i]), stdin);
+ // Remove newline char
+ assembly[i][strcspn(assembly[i], "\n")] = 0;
+ }
+ for (int i = 0; i < n; i++) {
+ char op[10], dest[10], src1[10], src2[10];
+ int parts;
+ // Try to parse 3 or 4 tokens depending on instruction
+ parts = sscanf(assembly[i], "%s %[^,], %[^,], %s", op, dest, src1, src2);
+ if (strcmp(op, "MOV") == 0) {
+ // MOV dest, src
+ sscanf(assembly[i], "%s %[^,], %s", op, dest, src1);
+ sprintf(tac[i], "%s = %s", dest, src1);
+ } else if (strcmp(op, "ADD") == 0 || strcmp(op, "SUB") == 0 ||
+ strcmp(op, "MUL") == 0 || strcmp(op, "DIV") == 0) {
+ // ADD dest, src1, src2
+ sscanf(assembly[i], "%s %[^,], %[^,], %s", op, dest, src1, src2);
+ char symbol;
+ if (strcmp(op, "ADD") == 0) symbol = '+';
+ else if (strcmp(op, "SUB") == 0) symbol = '-';
+ else if (strcmp(op, "MUL") == 0) symbol = '*';
+ else symbol = '/';
+ sprintf(tac[i], "%s = %s %c %s", dest, src1, symbol, src2);
+ } else {
+ sprintf(tac[i], "// Unsupported instruction: %s", assembly[i]);
+ }
+ }
+ printf("\nProcessed 3-Address Code:\n");
+ for (int i = 0; i < n; i++) {
+ printf("%s\n", tac[i]);
+ }
+ return 0;
+}
+Input:
+4
+MOV R0, R1
+ADD R2, R3, R4
+SUB R5, R6, R7
+MUL R8, R9, R10
+        </code>
+    </pre>
+
+    <h1>LEX</h1>
+    <PRE>
+        <CODE>
+            tokens.l
+%{
+#include <stdio.h>
+%}
+%%
+"int" { printf("Keyword: int\n"); }
+"float" { printf("Keyword: float\n"); }
+"return" { printf("Keyword: return\n"); }
+[0-9]+\.[0-9]+ { printf("Float constant: %s\n", yytext); }
+[0-9]+ { printf("Integer constant: %s\n", yytext); }
+[a-zA-Z_][a-zA-Z0-9_]* { printf("Identifier: %s\n", yytext); }
+"=" { printf("Operator: =\n"); }
+"+" { printf("Operator: +\n"); }
+"{" { printf("Symbol: {\n"); }
+"}" { printf("Symbol: }\n"); }
+";" { printf("Symbol: ;\n"); }
+[ \t\n]+ { /* Ignore whitespace */ }
+. { printf("Unknown character: %s\n", yytext); }
+%%
+int main() {
+ yylex();
+ return 0;
+}
+INPUT:
+input.c
+int main() {
+ int a = 10;
+ float b = 20.5;
+ a = a + b;
+ return 0;
+}
+Commands:
+flex tokens.l # Generates lex.yy.c
+gcc lex.yy.c -o lexer -ll # Compile the lexer
+./lexer < input.c # Run it with input
+        </CODE>
+    </PRE>
+<h1>YAAC</h1>
+<pre>
+    <code>
+        Design a parser using YACC Tool to perform basic arithmetic operations.
+
+Step 1:  Create the parser.y file (Yacc file)
+
+%{
+#include <stdio.h>
+#include <stdlib.h>
+
+int yylex();
+void yyerror(const char *s);
+%}
+
+%token NUMBER
+%left '+' '-'
+%left '*' '/'
+%left UMINUS
+
+%%
+
+input:
+    | input line
+    ;
+
+line:
+    '\n'
+    | expr '\n'   { printf("= %d\n", $1); }
+    ;
+
+expr:
+      NUMBER                { $$ = $1; }
+    | expr '+' expr         { $$ = $1 + $3; }
+    | expr '-' expr         { $$ = $1 - $3; }
+    | expr '*' expr         { $$ = $1 * $3; }
+    | expr '/' expr         {
+                                if ($3 == 0) {
+                                    yyerror("division by zero");
+                                    exit(1);
+                                }
+                                $$ = $1 / $3;
+                             }
+    | '-' expr %prec UMINUS { $$ = -$2; }
+    | '(' expr ')'          { $$ = $2; }
+    ;
+
+%%
+
+void yyerror(const char *s) {
+    fprintf(stderr, "Error: %s\n", s);
+}
+
+int main() {
+    printf("Enter an expression:\n");
+    yyparse();
+    return 0;
+}
+
+
+Step 2 : Create the lexer.l file (Lex/Flex file)
+
+root@Gopika:~# cat lexer.l
+%{
+#include "parser.tab.h"
+%}
+
+%%
+
+[ \t]           ; // Ignore spaces and tabs
+[0-9]+          { yylval = atoi(yytext); return NUMBER; }
+\n              { return '\n'; }
+"+"             { return '+'; }
+"-"             { return '-'; }
+"*"             { return '*'; }
+"/"             { return '/'; }
+"("             { return '('; }
+")"             { return ')'; }
+
+.               { printf("Unexpected character: %s\n", yytext); }
+
+%%
+
+int yywrap() {
+    return 1;
+}
+
+Step 3: 
+       Step A: Generate parser files using yacc
+                Command : yacc -d parser.y
+         
+      Step B: Generate lexer file using flex
+              Command : flex lexer.l
+
+      Step C: Compile the output C files
+              Command: gcc -o calc lex.yy.c y.tab.c -lfl
+
+Step 4: Run the calculator
+        ./calc
+
+
+
+Input : Enter an expression:
+        (3+4)*2
+
+Output : = 14
+
+    </code>
+</pre>
+<h1>epsilon closure</h1>
+<pre>
+    <code>
+        #include <stdio.h>
+
+
+#define MAX 10
+
+int nfa[MAX][MAX];  
+int visited[MAX];
+int n;
+
+void dfs(int state) {
+    visited[state] = 1;
+    for (int j = 0; j < n; j++) {
+        if (nfa[state][j] == 1 && !visited[j]) {
+            dfs(j);
+        }
+    }
+}
+
+void print_epsilon_closure(int state) {
+    for (int i = 0; i < n; i++) visited[i] = 0;
+    dfs(state);
+    printf("Epsilon closure of state %d: { ", state);
+    for (int i = 0; i < n; i++) {
+        if (visited[i]) printf("%d ", i);
+    }
+    printf("}\n");
+}
+
+int main() {
+    int transitions;
+    printf("Enter number of states: ");
+    scanf("%d", &n);
+
+    printf("Enter number of epsilon transitions: ");
+    scanf("%d", &transitions);
+
+    printf("Enter epsilon transitions (from to):\n");
+    for (int i = 0; i < transitions; i++) {
+        int from, to;
+        scanf("%d %d", &from, &to);
+        nfa[from][to] = 1;
+    }
+
+    for (int i = 0; i < n; i++) {
+        print_epsilon_closure(i);
+    }
+
+    return 0;
+}
+
+            
+    </code>
+</pre>
+<h1>NFA fom given regular expression</h1>
+<pre>
+    <code>
+        #include <stdio.h>
+#include <string.h>
+#include <stdbool.h>
+
+bool match(const char *re, const char *str) {
+    if (*re == '\0') return *str == '\0';
+
+    bool first_match = (*str && (*re == *str || *re == '.'));
+
+    if (re[1] == '*')
+        return match(re + 2, str) || (first_match && match(re, str + 1));
+    else
+        return first_match && match(re + 1, str + 1);
+}
+
+int main() {
+    char re[100], str[100];
+    printf("Enter regex (supports a, b, ., *): ");
+    scanf("%s", re);
+    printf("Enter string: ");
+    scanf("%s", str);
+
+    if (match(re, str))
+        printf("Accepted\n");
+    else
+        printf("Rejected\n");
+
+    return 0;
+}
+    </code>
+</pre>
+<h1>
+    FIRST & FOLLOW
+</h1>
+<pre>
+    <code>
+        #include <stdio.h>
+#include <string.h>
+#include <ctype.h>
+
+#define MAX 10
+
+char prod[MAX][10];  // Productions
+char first[MAX][10]; // FIRST sets
+char follow[MAX][10]; // FOLLOW sets
+int n; // Number of productions
+
+void findFirst(char *res, char ch);
+void findFollow(char *res, char ch);
+
+int isNonTerminal(char ch) {
+    return isupper(ch);
+}
+
+void addToSet(char *set, char ch) {
+    if (!strchr(set, ch)) {
+        int len = strlen(set);
+        set[len] = ch;
+        set[len + 1] = '\0';
+    }
+}
+
+void findFirst(char *res, char ch) {
+    for (int i = 0; i < n; i++) {
+        if (prod[i][0] == ch) {
+            if (!isNonTerminal(prod[i][2])) {
+                addToSet(res, prod[i][2]);
+            } else {
+                findFirst(res, prod[i][2]);
+            }
+        }
+    }
+}
+
+void findFollow(char *res, char ch) {
+    if (ch == prod[0][0]) addToSet(res, '$'); // Start symbol gets '$'
+
+    for (int i = 0; i < n; i++) {
+        for (int j = 2; j < strlen(prod[i]); j++) {
+            if (prod[i][j] == ch) {
+                if (prod[i][j+1] != '\0') {
+                    if (!isNonTerminal(prod[i][j+1]))
+                        addToSet(res, prod[i][j+1]);
+                    else {
+                        char temp[10] = "";
+                        findFirst(temp, prod[i][j+1]);
+                        for (int k = 0; temp[k]; k++)
+                            if (temp[k] != '#') addToSet(res, temp[k]);
+                    }
+                } else if (prod[i][0] != ch) {
+                    findFollow(res, prod[i][0]);
+                }
+            }
+        }
+    }
+}
+
+int main() {
+    printf("Enter number of productions: ");
+    scanf("%d", &n);
+
+    printf("Enter productions (e.g. E=TR):\n");
+    for (int i = 0; i < n; i++) {
+        scanf("%s", prod[i]);
+    }
+
+    for (int i = 0; i < n; i++) {
+        char ch = prod[i][0];
+        char tempF[10] = "", tempFo[10] = "";
+        findFirst(tempF, ch);
+        strcpy(first[i], tempF);
+        findFollow(tempFo, ch);
+        strcpy(follow[i], tempFo);
+    }
+
+    printf("\nFIRST and FOLLOW sets:\n");
+    for (int i = 0; i < n; i++) {
+        printf("FIRST(%c) = { ", prod[i][0]);
+        for (int j = 0; first[i][j]; j++)
+            printf("%c ", first[i][j]);
+        printf("}\n");
+
+        printf("FOLLOW(%c) = { ", prod[i][0]);
+        for (int j = 0; follow[i][j]; j++)
+            printf("%c ", follow[i][j]);
+        printf("}\n\n");
+    }
+
+    return 0;
+}
+    </code>
+</pre>
+<h1>
+    predictive parser
+</h1>
+<pre>
+    <code>
+        #include <stdio.h>
+#include <string.h>
+
+char stack[100], input[100];
+int top = -1;
+
+void push(const char *str) {
+    for (int i = strlen(str) - 1; i >= 0; i--)
+        stack[++top] = str[i];
+}
+
+char table[3][3][10] = {
+    {"TR", "", ""},     // E row: i, +, $
+    {"", "+TR", ""},    // R row
+    {"i", "", ""}       // T row
+};
+
+int getRow(char nonterm) {
+    switch (nonterm) {
+        case 'E': return 0;
+        case 'R': return 1;
+        case 'T': return 2;
+    }
+    return -1;
+}
+
+int getCol(char term) {
+    switch (term) {
+        case 'i': return 0;
+        case '+': return 1;
+        case '$': return 2;
+    }
+    return -1;
+}
+
+int main() {
+    printf("Enter input (e.g., i+i): ");
+    scanf("%s", input);
+    strcat(input, "$");
+
+    stack[++top] = '$';
+    stack[++top] = 'E';
+
+    int ip = 0;
+
+    while (top >= 0) {
+        char X = stack[top--];
+        char a = input[ip];
+
+        if (X == a) {
+            ip++;
+        } else if (X >= 'A' && X <= 'Z') { // non-terminal
+            int row = getRow(X);
+            int col = getCol(a);
+            if (strlen(table[row][col]) == 0) {
+                printf("Error: no rule for %c -> %c\n", X, a);
+                return 1;
+            } else if (strcmp(table[row][col], "e") != 0) {
+                push(table[row][col]);
+            }
+        } else {
+            printf("Error: mismatch %c vs %c\n", X, a);
+            return 1;
+        }
+    }
+
+    if (input[ip] == '$')
+        printf("String Accepted \n");
+    else
+        printf("String Rejected \n");
+
+    return 0;
+}
+    </code>
+</pre>
+</body>
+</html>
