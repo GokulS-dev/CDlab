@@ -4,616 +4,428 @@
     <title>KEC</title>
 </head>
 <body>
-    <h1>Token Separation / Symbol Table</h1>
-    <pre><code>
-#include 
-#include 
-#include 
-
-struct Symbol {
-    char name[50];
-    char type[20];
-    char memAddr[10];
-    char value[20];
-};
-
-struct Symbol table[100];
-int count = 0;
-int memLocation = 0x1000;
-
-void addSymbol(char *type, char *name, char *val) {
-    strcpy(table[count].name, name);
-    strcpy(table[count].type, "variable");
-    sprintf(table[count].memAddr, "0x%X", memLocation);
-    memLocation += 4;
-    if (val == NULL)
-        strcpy(table[count].value, "Uninitialized");
-    else
-        strcpy(table[count].value, val);
-    count++;
-}
-
-void printSymbolTable() {
-    printf("\n%-15s %-10s %-15s %-20s\n", "Name", "Type", "Memory Address", "Value");
-    printf("--------------------------------------------------------------\n");
-    for (int i = 0; i < count; i++) {
-        printf("%-15s %-10s %-15s %-20s\n", table[i].name, table[i].type, table[i].memAddr, table[i].value);
-    }
-}
-
-int main() {
-    char line[100];
-    printf("Enter variable declarations (e.g., int i = 5; float x = 0;):\n");
-    while (fgets(line, sizeof(line), stdin)) {
-        if (strcmp(line, "\n") == 0) break;
-        char type[20], name[50], eq[5], val[50];
-        int matched = sscanf(line, "%s %[^=;] = %[^;\n];", type, name, val);
-        if (matched == 3) {
-            char *trim = strtok(name, " ");
-            addSymbol(type, trim, val);
-        } else {
-            matched = sscanf(line, "%s %[^;\n];", type, name);
-            if (matched == 2) {
-                char *trim = strtok(name, " ");
-                addSymbol(type, trim, NULL);
-            }
-        }
-    }
-    printSymbolTable();
-    return 0;
-}
-
-// Input:
-// int count = 0;
-// float pi = 3.14;
-// char name;
-    </code></pre>
-    <h1>Three Address code generator</h1>
+    <h1>Naive Bayes</h1>
     <pre>
         <code>
-            #include <stdio.h>
-#include <string.h>
-#include <ctype.h>
-int tempCount = 1;
-// Generate new temporary variable name
-void newTemp(char *temp) {
- sprintf(temp, "t%d", tempCount++);
-}
-// Main function
-int main() {
- char expr[100];
- printf("Enter expression (e.g. a=b+c*d): ");
- scanf("%s", expr);
- char lhs[10], rhs[90];
- sscanf(expr, "%[^=]=%s", lhs, rhs); // Split lhs and rhs
- char tokens[20][10];
- int tokenCount = 0;
- int i = 0;
- // Tokenize RHS
- while (rhs[i]) {
- if (isalnum(rhs[i])) {
- int j = 0;
- while (isalnum(rhs[i])) {
- tokens[tokenCount][j++] = rhs[i++];
- }
- tokens[tokenCount++][j] = '\0';
- } else {
- tokens[tokenCount][0] = rhs[i++];
- tokens[tokenCount++][1] = '\0';
- }
- }
- // Step 1: Handle * and /
- for (int i = 0; i < tokenCount; i++) {
- if (strcmp(tokens[i], "*") == 0 || strcmp(tokens[i], "/") == 0) {
- char temp[10];
- newTemp(temp);
- printf("%s = %s %s %s\n", temp, tokens[i - 1], tokens[i], tokens[i + 1]);
- strcpy(tokens[i - 1], temp);
- // Shift tokens
- for (int j = i; j < tokenCount - 2; j++)
- strcpy(tokens[j], tokens[j + 2]);
- tokenCount -= 2;
- i--;
- }
- }
- // Step 2: Handle + and -
- for (int i = 0; i < tokenCount; i++) {
- if (strcmp(tokens[i], "+") == 0 || strcmp(tokens[i], "-") == 0) {
- char temp[10];
- newTemp(temp);
- printf("%s = %s %s %s\n", temp, tokens[i - 1], tokens[i], tokens[i + 1]);
- strcpy(tokens[i - 1], temp);
- // Shift tokens
- for (int j = i; j < tokenCount - 2; j++)
- strcpy(tokens[j], tokens[j + 2]);
- tokenCount -= 2;
- i--;
- }
- }
- // Final assignment
- printf("%s = %s\n", lhs, tokens[0]);
- return 0;
-}
-Input:
-a=b+c*d
+import pandas as pd
+from sklearn.model_selection import train_test_split
+from sklearn.naive_bayes import CategoricalNB
+
+
+file_path = r"C:\Users\matha\Downloads\New folder\dental.csv"
+df = pd.read_csv(file_path)
+
+# Display the first 10 rows of the dataset
+print("First 10 rows of the dataset:")
+print(df.head(10))
+
+# Prepare X and y for training
+X = pd.get_dummies(df.iloc[:, :-1])  
+y = df.iloc[:, -1]  
+
+model = CategoricalNB()
+model.fit(X, y)
+
+input_data = {}
+for col in df.columns[:-1]:
+    input_data[col] = input(f"Enter {col} ({df[col].unique().tolist()}): ")
+input_df = pd.DataFrame([input_data])
+input_df = pd.get_dummies(input_df)
+
+input_df = input_df.reindex(columns=X.columns, fill_value=0)
+
+prediction = model.predict(input_df)[0]
+print(f"Predicted Dental Health: {prediction}")
+
+print("Explanation: The model predicts dental health based on categorical features.")
         </code>
     </pre>
-
-    <h1>Three address code for assembly code</h1>
+    <h1>
+        KNN
+    </h1>
     <pre>
         <code>
-            #include <stdio.h>
-#include <string.h>
-#define MAX 100
-int main() {
- int n;
- printf("Enter number of assembly instructions: ");
- scanf("%d", &n);
- getchar();
- char assembly[MAX][100];
- char tac[MAX][100]; // store 3-address code lines
- for (int i = 0; i < n; i++) {
- fgets(assembly[i], sizeof(assembly[i]), stdin);
- // Remove newline char
- assembly[i][strcspn(assembly[i], "\n")] = 0;
- }
- for (int i = 0; i < n; i++) {
- char op[10], dest[10], src1[10], src2[10];
- int parts;
- // Try to parse 3 or 4 tokens depending on instruction
- parts = sscanf(assembly[i], "%s %[^,], %[^,], %s", op, dest, src1, src2);
- if (strcmp(op, "MOV") == 0) {
- // MOV dest, src
- sscanf(assembly[i], "%s %[^,], %s", op, dest, src1);
- sprintf(tac[i], "%s = %s", dest, src1);
- } else if (strcmp(op, "ADD") == 0 || strcmp(op, "SUB") == 0 ||
- strcmp(op, "MUL") == 0 || strcmp(op, "DIV") == 0) {
- // ADD dest, src1, src2
- sscanf(assembly[i], "%s %[^,], %[^,], %s", op, dest, src1, src2);
- char symbol;
- if (strcmp(op, "ADD") == 0) symbol = '+';
- else if (strcmp(op, "SUB") == 0) symbol = '-';
- else if (strcmp(op, "MUL") == 0) symbol = '*';
- else symbol = '/';
- sprintf(tac[i], "%s = %s %c %s", dest, src1, symbol, src2);
- } else {
- sprintf(tac[i], "// Unsupported instruction: %s", assembly[i]);
- }
- }
- printf("\nProcessed 3-Address Code:\n");
- for (int i = 0; i < n; i++) {
- printf("%s\n", tac[i]);
- }
- return 0;
-}
-Input:
-4
-MOV R0, R1
-ADD R2, R3, R4
-SUB R5, R6, R7
-MUL R8, R9, R10
+import pandas as pd
+from sklearn.model_selection import train_test_split
+from sklearn.neighbors import KNeighborsClassifier
+from sklearn.preprocessing import StandardScaler
+
+
+df = pd.read_csv(r"C:\Users\matha\Downloads\New folder\diabetes_detection_dataset.csv")
+
+print(df.head())
+
+X = df[["Glucose Level", "BMI", "Age"]]
+y = df["Outcome"]
+
+scaler=StandardScaler()
+X_scaled = scaler.fit_transform(X)
+
+X_train, X_test, y_train, y_test = train_test_split(X_scaled, y, test_size=0.2, random_state=42)
+
+knn = KNeighborsClassifier(n_neighbors=5)
+knn.fit(X_train, y_train)
+
+glucose = float(input("Enter Glucose Level (mg/dL): "))
+bmi = float(input("Enter BMI: "))
+age = int(input("Enter Age: "))
+
+user_input = scaler.transform([[glucose, bmi, age]])
+
+prediction = knn.predict(user_input)
+
+if prediction[0] == 1:
+    print("The person is likely DIABETIC.")
+else:
+    print("The person is likely NON-DIABETIC.")
         </code>
     </pre>
+    <h1>
+        Linear Regression
+    </h1>
+    <pre>
+        <code>
+import pandas as pd
+import matplotlib.pyplot as plt
 
-    <h1>LEX</h1>
+def calculate_mean(values):
+    return sum(values) / len(values)
+def linear_regression(x, y):
+    mean_x = calculate_mean(x)
+    mean_y = calculate_mean(y)
+
+    numerator = sum((x[i] - mean_x) * (y[i] - mean_y) for i in range(len(x)))
+    denominator = sum((x[i] - mean_x) ** 2 for i in range(len(x)))
+
+    slope = numerator / denominator
+    intercept = mean_y - slope * mean_x
+
+    return slope, intercept
+
+file_path = input("Enter the path to the CSV file (e.g., data.csv): ")
+df = pd.read_csv(file_path)
+
+X = df['Altitude'].tolist()
+Y = df['Temperature'].tolist()
+
+m, c = linear_regression(X, Y)
+print("Slope:", m)
+print("Intercept:", c)
+
+x_value = float(input("Enter altitude (m): "))
+y_value = m * x_value + c
+print("Predicted Temperature:", y_value, "°C")
+
+plt.scatter(X, Y, color='red', label='Data Points')
+y_predicted = [m * x + c for x in X]
+plt.plot(X, y_predicted, color='blue', label='Regression Line')
+plt.xlabel("Altitude (m)")
+plt.ylabel("Temperature (°C)")
+plt.title("Altitude vs Temperature")
+plt.legend()
+plt.grid(True)
+plt.show()
+        </code>
+    </pre>
+    <h1>SVM</h1>
     <PRE>
         <CODE>
-            tokens.l
-%{
-#include <stdio.h>
-%}
-%%
-"int" { printf("Keyword: int\n"); }
-"float" { printf("Keyword: float\n"); }
-"return" { printf("Keyword: return\n"); }
-[0-9]+\.[0-9]+ { printf("Float constant: %s\n", yytext); }
-[0-9]+ { printf("Integer constant: %s\n", yytext); }
-[a-zA-Z_][a-zA-Z0-9_]* { printf("Identifier: %s\n", yytext); }
-"=" { printf("Operator: =\n"); }
-"+" { printf("Operator: +\n"); }
-"{" { printf("Symbol: {\n"); }
-"}" { printf("Symbol: }\n"); }
-";" { printf("Symbol: ;\n"); }
-[ \t\n]+ { /* Ignore whitespace */ }
-. { printf("Unknown character: %s\n", yytext); }
-%%
-int main() {
- yylex();
- return 0;
-}
-INPUT:
-input.c
-int main() {
- int a = 10;
- float b = 20.5;
- a = a + b;
- return 0;
-}
-Commands:
-flex tokens.l # Generates lex.yy.c
-gcc lex.yy.c -o lexer -ll # Compile the lexer
-./lexer < input.c # Run it with input
+import pandas as pd
+import numpy as np
+import matplotlib.pyplot as plt
+from sklearn.model_selection import train_test_split
+from sklearn.svm import SVC
+from sklearn.metrics import classification_report
+from matplotlib.lines import Line2D
+
+df = pd.read_csv(r"C:\Users\matha\Downloads\New folder\heart.csv")
+X = df[['age', 'chol']]
+y = df['output']
+
+X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.3, stratify=y, random_state=42)
+
+kernels = ['linear', 'poly', 'rbf', 'sigmoid']
+scores = {}
+for k in kernels:
+    model = SVC(kernel=k)
+    model.fit(X_train, y_train)
+    scores[k] = model.score(X_test, y_test)
+
+best_kernel = max(scores, key=scores.get)
+print("Best Kernel:", best_kernel)
+
+final_model = SVC(kernel=best_kernel)
+final_model.fit(X_train, y_train)
+y_pred = final_model.predict(X_test)
+print("\nClassification Report:\n", classification_report(y_test, y_pred))
+
+fig, axs = plt.subplots(2, 2, figsize=(12, 10))
+axs = axs.ravel()
+xx, yy = np.meshgrid(np.arange(X['age'].min()-1, X['age'].max()+1, 1),
+                     np.arange(X['chol'].min()-10, X['chol'].max()+10, 1))
+
+for i, k in enumerate(kernels):
+    clf = SVC(kernel=k).fit(X_train, y_train)
+    Z = clf.predict(np.c_[xx.ravel(), yy.ravel()]).reshape(xx.shape)
+
+    axs[i].contourf(xx, yy, Z, alpha=0.3, cmap=plt.cm.coolwarm)
+    axs[i].scatter(X_train['age'], X_train['chol'], c=y_train, edgecolors='k', cmap=plt.cm.coolwarm)
+    axs[i].set_title(f"{k.capitalize()} Kernel")
+    axs[i].set_xlabel("Age")
+    axs[i].set_ylabel("Chol")
+
+plt.tight_layout()
+plt.show()
+
+def predict_heart(age, chol):
+    pred = final_model.predict([[age, chol]])[0]
+    return "Disease" if pred == 1 else "No Disease"
+
+print("\nPrediction for Age=54, Chol=240:", predict_heart(54, 354))
+
         </CODE>
     </PRE>
-<h1>YAAC</h1>
-<pre>
-    <code>
-        Design a parser using YACC Tool to perform basic arithmetic operations.
+    <h1>
+        K means
+    </h1>
+    <pre>
+        <code>
+import numpy as np
+import pandas as pd
+import matplotlib.pyplot as plt
 
-Step 1:  Create the parser.y file (Yacc file)
+fruits = {
+    "Fruit": ['F1', 'F2', 'F3', 'F4', 'F5', 'F6', 'F7', 'F8', 'F9', 'F10'],
+    "Sugar": [2, 2, 1, 5, 5, 5, 9, 9, 9, 10],
+    "Firmness": [3, 6, 2, 4, 6, 2, 3, 5, 1, 3]
+}
+df = pd.DataFrame(fruits)
 
-%{
-#include <stdio.h>
-#include <stdlib.h>
-
-int yylex();
-void yyerror(const char *s);
-%}
-
-%token NUMBER
-%left '+' '-'
-%left '*' '/'
-%left UMINUS
-
-%%
-
-input:
-    | input line
-    ;
-
-line:
-    '\n'
-    | expr '\n'   { printf("= %d\n", $1); }
-    ;
-
-expr:
-      NUMBER                { $$ = $1; }
-    | expr '+' expr         { $$ = $1 + $3; }
-    | expr '-' expr         { $$ = $1 - $3; }
-    | expr '*' expr         { $$ = $1 * $3; }
-    | expr '/' expr         {
-                                if ($3 == 0) {
-                                    yyerror("division by zero");
-                                    exit(1);
-                                }
-                                $$ = $1 / $3;
-                             }
-    | '-' expr %prec UMINUS { $$ = -$2; }
-    | '(' expr ')'          { $$ = $2; }
-    ;
-
-%%
-
-void yyerror(const char *s) {
-    fprintf(stderr, "Error: %s\n", s);
+centroids = {
+    'C1': [2, 3],
+    'C2': [5, 4],
+    'C3': [9, 3]
 }
 
-int main() {
-    printf("Enter an expression:\n");
-    yyparse();
-    return 0;
+colors = {'C1': 'red', 'C2': 'green', 'C3': 'blue'}
+markers = {'C1': 'o', 'C2': 's', 'C3': 'D'}
+
+def manhattan_distance(p1, p2):
+    return abs(p1[0]-p2[0]) + abs(p1[1]-p2[1])
+
+def assign_clusters(df, centroids):
+    cluster_assignment = []
+    distance_table = []
+
+    for index, row in df.iterrows():
+        fruit_point = (row['Sugar'], row['Firmness'])
+        distances = {c: manhattan_distance(fruit_point, pt) for c, pt in centroids.items()}
+        cluster_assignment.append(min(distances, key=distances.get))
+        distance_table.append(distances)
+    return cluster_assignment, distance_table
+
+def update_centroids(df):
+    new_centroids = {}
+    for cluster in df['Cluster'].unique():
+        cluster_points = df[df['Cluster'] == cluster]
+        new_centroids[cluster] = [
+            cluster_points['Sugar'].mean(),
+            cluster_points['Firmness'].mean()
+        ]
+    return new_centroids
+
+def plot_clusters(df, centroids, iteration, new_point=None):
+    plt.figure(figsize=(7, 5))
+    for cluster in df['Cluster'].unique():
+        clustered_df = df[df['Cluster'] == cluster]
+        plt.scatter(clustered_df['Sugar'], clustered_df['Firmness'],
+                    c=colors[cluster], label=f"{cluster}", marker=markers[cluster])
+    
+    for c, (x, y) in centroids.items():
+        plt.scatter(x, y, c='black', marker='X', s=150, edgecolor='white', label=f'{c} Center')
+
+    if new_point:
+        plt.scatter(new_point[0], new_point[1], c='purple', marker='*', s=150, label='New Point')
+
+    plt.title(f"Cluster Visualization - Iteration {iteration}")
+    plt.xlabel("Sugar")
+    plt.ylabel("Firmness")
+    plt.legend()
+    plt.grid(True)
+    plt.show()
+
+iteration = 1
+prev_clusters = None
+
+while True:
+    print(f"\n --- Iteration {iteration} --- ")
+    cluster_assignment, distance_table = assign_clusters(df, centroids)
+
+    distance_df = pd.DataFrame(distance_table)
+    distance_df.insert(0, 'Fruit', df['Fruit'])
+    print("\n Distance Table:")
+    print(distance_df)
+
+    df['Cluster'] = cluster_assignment
+
+    print("\nCluster Assignment:")
+    print(df[['Fruit', 'Sugar', 'Firmness', 'Cluster']])
+
+    new_centroids = update_centroids(df)
+
+    print("\n Updated Centroids:")
+    for c, point in new_centroids.items():
+        print(f"{c}: (Sugar: {point[0]:.4f}, Firmness: {point[1]:.4f})")
+
+    plot_clusters(df, new_centroids, iteration)
+
+    if prev_clusters is not None and all(df['Cluster'] == prev_clusters):
+        print("\n Clustering converged!")
+        break
+
+    centroids = new_centroids
+    prev_clusters = df['Cluster'].copy()
+    iteration += 1
+
+print("\n Predict a new fruit's cluster!")
+new_sugar = float(input("Enter Sugar value: "))
+new_firmness = float(input("Enter Firmness value: "))
+new_point = (new_sugar, new_firmness)
+
+distances = {c: manhattan_distance(new_point, pt) for c, pt in centroids.items()}
+print("\n Distance to Final Centroids:")
+for c, d in distances.items():
+    print(f"{c}: {d:.4f}")
+predicted_cluster = min(distances, key=distances.get)
+print(f"\n The new fruit (Sugar={new_sugar}, Firmness={new_firmness}) belongs to: **{predicted_cluster}** ")
+
+plot_clusters(df, centroids, "Final", new_point=new_point)
+
+
+        </code>
+    </pre>
+    <h1>
+        decision tree
+    </h1>
+    <pre>
+        <code>
+import numpy as np
+import pandas as pd
+from sklearn.model_selection import train_test_split
+from sklearn.tree import DecisionTreeClassifier, plot_tree
+from sklearn.metrics import accuracy_score
+import matplotlib.pyplot as plt
+
+data = {
+'Age': ['<=30', '<=30', '31-40', '>40', '>40'],
+'Income': ['High', 'High', 'High', 'Medium', 'Low'],
+'Student': ['No', 'No', 'No', 'No', 'Yes'],
+'Credit_Rating': ['Fair', 'Excellent', 'Fair', 'Fair', 'Fair'],
+'Class': ['No', 'No', 'Yes', 'Yes', 'Yes']
 }
+df = pd.DataFrame(data)
 
+df = pd.get_dummies(df, columns=['Age', 'Income', 'Student', 'Credit_Rating'], drop_first=True)
 
-Step 2 : Create the lexer.l file (Lex/Flex file)
+X = df.drop(columns=['Class'])
+y = df['Class']
 
-root@Gopika:~# cat lexer.l
-%{
-#include "parser.tab.h"
-%}
+X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
 
-%%
+dt_model = DecisionTreeClassifier(criterion='entropy', random_state=42)
+dt_model.fit(X_train, y_train)
 
-[ \t]           ; // Ignore spaces and tabs
-[0-9]+          { yylval = atoi(yytext); return NUMBER; }
-\n              { return '\n'; }
-"+"             { return '+'; }
-"-"             { return '-'; }
-"*"             { return '*'; }
-"/"             { return '/'; }
-"("             { return '('; }
-")"             { return ')'; }
+y_pred = dt_model.predict(X_test)
 
-.               { printf("Unexpected character: %s\n", yytext); }
+print("Accuracy:", accuracy_score(y_test, y_pred))
 
-%%
+plt.figure(figsize=(10,6))
+plot_tree(dt_model, filled=True, feature_names=X.columns, class_names=['No', 'Yes'])
+plt.show()
 
-int yywrap() {
-    return 1;
-}
+        </code>
+    </pre>
+    <h1>
+        Genetic Algo
+    </h1>
+    <pre>
+        <code>
+import random
+def crossover(l, q):
+l = list(l)
+q = list(q)
+k = random.randint(0, 15)
+print("Crossover point :", k)
+for i in range(k, len(s)):
+l[i], q[i] = q[i], l[i]
+l = ''.join(l)
+q = ''.join(q)
+print(l)
+print(q, "\n\n")
+return l, q
+s = '1100110110110011' p = '1000110011011111' print("Parents")
+print("P1 :", s)
+print("P2 :", p, "\n")
+for i in range(5):
+print("Generation ", i+1, "Childrens :")
+s, p = crossover(s, p)
+        </code>
+    </pre>
+    <h1>
+        Q Learning
+    </h1>
+    <pre>
+        <code>
+import numpy as np
+R = np.matrix([ [-1,-1,-1,-1,0,-1],
+[-1,-1,-1,0,-1,100],
+[-1,-1,-1,0,-1,-1],
+[-1,0,0,-1,0,-1],
+[-1,0,0,-1,-1,100],
+[-1,0,-1,-1,0,100] ])
 
-Step 3: 
-       Step A: Generate parser files using yacc
-                Command : yacc -d parser.y
-         
-      Step B: Generate lexer file using flex
-              Command : flex lexer.l
+Q = np.matrix(np.zeros([6,6]))
+gamma = 0.8
 
-      Step C: Compile the output C files
-              Command: gcc -o calc lex.yy.c y.tab.c -lfl
-
-Step 4: Run the calculator
-        ./calc
-
-
-
-Input : Enter an expression:
-        (3+4)*2
-
-Output : = 14
-
-    </code>
-</pre>
-<h1>epsilon closure</h1>
-<pre>
-    <code>
-        #include <stdio.h>
-
-
-#define MAX 10
-
-int nfa[MAX][MAX];  
-int visited[MAX];
-int n;
-
-void dfs(int state) {
-    visited[state] = 1;
-    for (int j = 0; j < n; j++) {
-        if (nfa[state][j] == 1 && !visited[j]) {
-            dfs(j);
-        }
-    }
-}
-
-void print_epsilon_closure(int state) {
-    for (int i = 0; i < n; i++) visited[i] = 0;
-    dfs(state);
-    printf("Epsilon closure of state %d: { ", state);
-    for (int i = 0; i < n; i++) {
-        if (visited[i]) printf("%d ", i);
-    }
-    printf("}\n");
-}
-
-int main() {
-    int transitions;
-    printf("Enter number of states: ");
-    scanf("%d", &n);
-
-    printf("Enter number of epsilon transitions: ");
-    scanf("%d", &transitions);
-
-    printf("Enter epsilon transitions (from to):\n");
-    for (int i = 0; i < transitions; i++) {
-        int from, to;
-        scanf("%d %d", &from, &to);
-        nfa[from][to] = 1;
-    }
-
-    for (int i = 0; i < n; i++) {
-        print_epsilon_closure(i);
-    }
-
-    return 0;
-}
-
-            
-    </code>
-</pre>
-<h1>NFA fom given regular expression</h1>
-<pre>
-    <code>
-        #include <stdio.h>
-#include <string.h>
-#include <stdbool.h>
-
-bool match(const char *re, const char *str) {
-    if (*re == '\0') return *str == '\0';
-
-    bool first_match = (*str && (*re == *str || *re == '.'));
-
-    if (re[1] == '*')
-        return match(re + 2, str) || (first_match && match(re, str + 1));
-    else
-        return first_match && match(re + 1, str + 1);
-}
-
-int main() {
-    char re[100], str[100];
-    printf("Enter regex (supports a, b, ., *): ");
-    scanf("%s", re);
-    printf("Enter string: ");
-    scanf("%s", str);
-
-    if (match(re, str))
-        printf("Accepted\n");
-    else
-        printf("Rejected\n");
-
-    return 0;
-}
-    </code>
-</pre>
-<h1>
-    FIRST & FOLLOW
-</h1>
-<pre>
-    <code>
-        #include <stdio.h>
-#include <string.h>
-#include <ctype.h>
-
-#define MAX 10
-
-char prod[MAX][10];  // Productions
-char first[MAX][10]; // FIRST sets
-char follow[MAX][10]; // FOLLOW sets
-int n; // Number of productions
-
-void findFirst(char *res, char ch);
-void findFollow(char *res, char ch);
-
-int isNonTerminal(char ch) {
-    return isupper(ch);
-}
-
-void addToSet(char *set, char ch) {
-    if (!strchr(set, ch)) {
-        int len = strlen(set);
-        set[len] = ch;
-        set[len + 1] = '\0';
-    }
-}
-
-void findFirst(char *res, char ch) {
-    for (int i = 0; i < n; i++) {
-        if (prod[i][0] == ch) {
-            if (!isNonTerminal(prod[i][2])) {
-                addToSet(res, prod[i][2]);
-            } else {
-                findFirst(res, prod[i][2]);
-            }
-        }
-    }
-}
-
-void findFollow(char *res, char ch) {
-    if (ch == prod[0][0]) addToSet(res, '$'); // Start symbol gets '$'
-
-    for (int i = 0; i < n; i++) {
-        for (int j = 2; j < strlen(prod[i]); j++) {
-            if (prod[i][j] == ch) {
-                if (prod[i][j+1] != '\0') {
-                    if (!isNonTerminal(prod[i][j+1]))
-                        addToSet(res, prod[i][j+1]);
-                    else {
-                        char temp[10] = "";
-                        findFirst(temp, prod[i][j+1]);
-                        for (int k = 0; temp[k]; k++)
-                            if (temp[k] != '#') addToSet(res, temp[k]);
-                    }
-                } else if (prod[i][0] != ch) {
-                    findFollow(res, prod[i][0]);
-                }
-            }
-        }
-    }
-}
-
-int main() {
-    printf("Enter number of productions: ");
-    scanf("%d", &n);
-
-    printf("Enter productions (e.g. E=TR):\n");
-    for (int i = 0; i < n; i++) {
-        scanf("%s", prod[i]);
-    }
-
-    for (int i = 0; i < n; i++) {
-        char ch = prod[i][0];
-        char tempF[10] = "", tempFo[10] = "";
-        findFirst(tempF, ch);
-        strcpy(first[i], tempF);
-        findFollow(tempFo, ch);
-        strcpy(follow[i], tempFo);
-    }
-
-    printf("\nFIRST and FOLLOW sets:\n");
-    for (int i = 0; i < n; i++) {
-        printf("FIRST(%c) = { ", prod[i][0]);
-        for (int j = 0; first[i][j]; j++)
-            printf("%c ", first[i][j]);
-        printf("}\n");
-
-        printf("FOLLOW(%c) = { ", prod[i][0]);
-        for (int j = 0; follow[i][j]; j++)
-            printf("%c ", follow[i][j]);
-        printf("}\n\n");
-    }
-
-    return 0;
-}
-    </code>
-</pre>
-<h1>
-    predictive parser
-</h1>
-<pre>
-    <code>
-        #include <stdio.h>
-#include <string.h>
-
-char stack[100], input[100];
-int top = -1;
-
-void push(const char *str) {
-    for (int i = strlen(str) - 1; i >= 0; i--)
-        stack[++top] = str[i];
-}
-
-char table[3][3][10] = {
-    {"TR", "", ""},     // E row: i, +, $
-    {"", "+TR", ""},    // R row
-    {"i", "", ""}       // T row
-};
-
-int getRow(char nonterm) {
-    switch (nonterm) {
-        case 'E': return 0;
-        case 'R': return 1;
-        case 'T': return 2;
-    }
-    return -1;
-}
-
-int getCol(char term) {
-    switch (term) {
-        case 'i': return 0;
-        case '+': return 1;
-        case '$': return 2;
-    }
-    return -1;
-}
-
-int main() {
-    printf("Enter input (e.g., i+i): ");
-    scanf("%s", input);
-    strcat(input, "$");
-
-    stack[++top] = '$';
-    stack[++top] = 'E';
-
-    int ip = 0;
-
-    while (top >= 0) {
-        char X = stack[top--];
-        char a = input[ip];
-
-        if (X == a) {
-            ip++;
-        } else if (X >= 'A' && X <= 'Z') { // non-terminal
-            int row = getRow(X);
-            int col = getCol(a);
-            if (strlen(table[row][col]) == 0) {
-                printf("Error: no rule for %c -> %c\n", X, a);
-                return 1;
-            } else if (strcmp(table[row][col], "e") != 0) {
-                push(table[row][col]);
-            }
-        } else {
-            printf("Error: mismatch %c vs %c\n", X, a);
-            return 1;
-        }
-    }
-
-    if (input[ip] == '$')
-        printf("String Accepted \n");
-    else
-        printf("String Rejected \n");
-
-    return 0;
-}
-    </code>
-</pre>
+initial_state = 1
+def available_actions(state):
+current_state_row = R[state,]
+av_act = np.where(current_state_row >= 0)[1]
+return av_act
+available_act = available_actions(initial_state)
+def sample_next_action(available_actions_range):
+next_action = int(np.random.choice(available_act,1))
+return next_action
+action = sample_next_action(available_act)
+def update(current_state, action, gamma):
+max_index = np.where(Q[action,] == np.max(Q[action,]))[1]
+if max_index.shape[0] > 1:
+max_index = int(np.random.choice(max_index, size = 1))
+else:
+max_index = int(max_index)
+max_value = Q[action, max_index]
+Q[current_state, action] = R[current_state, action] + gamma * max_value
+update(initial_state,action,gamma)
+for i in range(10000):
+current_state = np.random.randint(0, int(Q.shape[0]))
+available_act = available_actions(current_state)
+action = sample_next_action(available_act)
+update(current_state,action,gamma)
+print("Trained Q matrix:")
+print(Q/np.max(Q)*100)
+current_state = 2
+steps = [current_state]
+while current_state != 5:
+next_step_index = np.where(Q[current_state,] == np.max(Q[current_state,]))[1]
+if next_step_index.shape[0] > 1:
+next_step_index = int(np.random.choice(next_step_index, size = 1))
+else:
+next_step_index = int(next_step_index)
+steps.append(next_step_index)
+current_state = next_step_index
+print("Selected path:")
+print(steps)
+        </code>
+    </pre>
 </body>
 </html>
